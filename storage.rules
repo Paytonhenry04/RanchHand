@@ -1,0 +1,40 @@
+// storage.rules
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTION MODE — explicit rules required (deny-all by default in console)
+//
+// Deploy with:
+//   firebase deploy --only storage
+//
+// Or paste directly into Firebase Console → Storage → Rules tab
+//
+// Storage is used for animal photo uploads (Phase 2).
+// Structure: /animals/{ranchId}/{animalId}/{filename}
+// ─────────────────────────────────────────────────────────────────────────────
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Animal photos ──────────────────────────────────────────────────────
+    // Path: animals/{ranchId}/{animalId}/{filename}
+    //
+    // - Any authenticated user can READ photos (needed for the ranch board
+    //   and animal cards throughout the app)
+    // - Any authenticated user can UPLOAD (admin adding ranch animals,
+    //   or user uploading their own horse's photo)
+    // - File size capped at 10MB
+    // - Only image file types allowed
+    match /animals/{ranchId}/{animalId}/{filename} {
+      allow read: if request.auth != null;
+
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024          // max 10MB
+        && request.resource.contentType.matches('image/.*');  // images only
+    }
+
+    // ── Catch-all: deny everything else ───────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

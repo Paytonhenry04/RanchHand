@@ -1,0 +1,114 @@
+// firestore.rules
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTION MODE — explicit rules required (deny-all by default in console)
+//
+// Deploy with:
+//   firebase deploy --only firestore:rules
+//
+// Or paste directly into Firebase Console → Firestore → Rules tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ───────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    // Safe user data fetch — returns null if the document doesn't exist yet.
+    // This prevents crashes during the very first profile write at registration.
+    function getUserData() {
+      let userDoc = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userDoc) ? get(userDoc).data : null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && getUserData() != null
+        && getUserData().role == 'admin';
+    }
+
+    // Checks the caller is in the same ranch as the document being accessed.
+    function sameRanch(ranchId) {
+      return isSignedIn()
+        && getUserData() != null
+        && getUserData().ranchId == ranchId;
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────────
+    // - Any signed-in user can read profiles (admins need to list members)
+    // - A user can only create their own profile document
+    // - A user can update their own profile; admins can update any profile
+    //   (needed for promoteToAdmin)
+    match /users/{uid} {
+      allow read:   if isSignedIn();
+      allow create: if isSignedIn() && isOwner(uid);
+      allow update: if isSignedIn() && (isOwner(uid) || isAdmin());
+      allow delete: if false; // never delete user records through the app
+    }
+
+    // ── Ranches ────────────────────────────────────────────────────────────
+    // - Any signed-in user can read ranches (needed for join-by-code query)
+    // - Any signed-in user can create a ranch (they become admin via onboarding)
+    // - Only an admin of THAT ranch can update it
+    match /ranches/{ranchId} {
+      allow read:   if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isAdmin() && sameRanch(ranchId);
+      allow delete: if false;
+    }
+
+    // ── Animals ────────────────────────────────────────────────────────────
+    // - Ranch members can read animals in their ranch
+    // - Ranch members can create animals (admin-created or user self-adding)
+    // - Admins can update any animal; users can only update animals they own
+    // - Only admins can delete animals
+    match /animals/{animalId} {
+      allow read:   if isSignedIn() && sameRanch(resource.data.ranchId);
+      allow create: if isSignedIn() && sameRanch(request.resource.data.ranchId);
+      allow update: if isSignedIn() && (
+                      isAdmin() ||
+                      resource.data.ownerId == request.auth.uid
+                    );
+      allow delete: if isAdmin();
+    }
+
+    // ── Services ───────────────────────────────────────────────────────────
+    // - Ranch members can read services (users need to browse when requesting)
+    // - Only admins can create, update, or delete service definitions
+    match /services/{serviceId} {
+      allow read:   if isSignedIn() && sameRanch(resource.data.ranchId);
+      allow create: if isAdmin() && sameRanch(request.resource.data.ranchId);
+      allow update: if isAdmin() && sameRanch(resource.data.ranchId);
+      allow delete: if isAdmin() && sameRanch(resource.data.ranchId);
+    }
+
+    // ── Animal Services (assignments & requests) ───────────────────────────
+    // - Ranch members can read assignments in their ranch
+    // - Any ranch member can CREATE (admin assigns, user requests with requestedBy set)
+    // - Only admins can approve/update/remove assignments
+    match /animalServices/{id} {
+      allow read:   if isSignedIn() && sameRanch(resource.data.ranchId);
+      allow create: if isSignedIn() && sameRanch(request.resource.data.ranchId);
+      allow update: if isAdmin() && sameRanch(resource.data.ranchId);
+      allow delete: if isAdmin() && sameRanch(resource.data.ranchId);
+    }
+
+    // ── Service Completions ────────────────────────────────────────────────
+    // - Ranch members can read completions (needed for billing calculations)
+    // - Only admins can mark completions
+    // - Completions are immutable once written (billing integrity)
+    match /serviceCompletions/{id} {
+      allow read:          if isSignedIn() && sameRanch(resource.data.ranchId);
+      allow create:        if isAdmin() && sameRanch(request.resource.data.ranchId);
+      allow update, delete: if false;
+    }
+  }
+}
