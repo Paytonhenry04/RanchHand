@@ -1,155 +1,87 @@
 # Ranch Hand 🐴
 
-A service tracking and billing reference app for ranch owners/staff (Admins) and horse owners (Users).
-
-> **Billing is for tracking purposes only — no money is processed through this app.**
+A service tracking and billing reference app for ranch owners, staff, and horse owners. Ranch Hand keeps everyone on the same page — from daily task checklists to monthly billing summaries — without any money changing hands through the app.
 
 ---
 
-## 🏷️ App Name Options
+## What It Does
 
-Here are a few name ideas based on the app's functionality:
+Ranch Hand connects two types of users around a shared ranch:
 
-| Name | Vibe |
+**Admins** (ranch owners and staff) manage the operation — they create the ranch, set up animals and services, run the daily task checklist, and monitor billing across all owners.
+
+**Users** (horse/animal owners) join the ranch with a 6-digit code, manage their animal's record, request services, and track what they're being charged for each month.
+
+---
+
+## How It Works
+
+### Joining a Ranch
+An admin creates a ranch and receives a unique 6-digit code. Animal owners use that code to join. Once inside, users can either claim an animal the admin already created or add their own.
+
+### Animals
+Each animal has a full record — breed, age, color, feed details, vet contact, farrier contact, and notes for special needs. Owners can set their record to **public** (full details visible to all ranch members) or **private** (only the name and owner name are shown to other users; admins always see everything).
+
+Animals can be sorted by name, owner, or a **custom route order** — admins arrange animals into the order they physically walk the property, so the task list matches their real-world service route.
+
+### Services
+Admins create reusable services with a name, description, price, and payment type:
+
+- **One-time** — billed each time the task is marked complete (e.g. a vet visit, a grain delivery)
+- **Recurring** — a monthly fee billed by percentage of completion (e.g. daily blanketing at $20/month)
+
+Services are then assigned to individual animals. Admins can add per-animal notes on a service — for example, "blanket at 60°F and below" for one horse and "blanket at 50°F" for another.
+
+Users can also **request services**, which go into a pending queue for admin approval before billing begins.
+
+### Daily Task Checklist
+The admin's core daily tool. Every active service for every animal shows up as a checkbox. Admins work through the list as they move through the ranch, checking off tasks as they go. The page shows a live progress bar across the whole ranch for the day.
+
+### Billing
+Billing figures are **for tracking and reference only** — no money is processed through the app. All payments are arranged directly between owners and the ranch.
+
+- **One-time services** are added to the bill only when the task is marked complete
+- **Recurring services** are calculated at the end of the month based on completion percentage — if a daily task was completed 20 out of 30 days, the owner sees 66% of the monthly rate
+
+Admins see a full breakdown per owner and per animal. Users see only their own animals and a summary of what they're on track to be charged.
+
+### Members
+Admins can view all ranch members and their roles. The ranch's 6-digit join code is always visible here to share with new owners. Any user can be promoted to admin — useful for staff or co-owners who need full access.
+
+---
+
+## User Roles
+
+| Feature | Admin | User |
+|---|---|---|
+| Create / edit any animal | ✅ | Own animals only |
+| Assign services to animals | ✅ | Request only |
+| Approve service requests | ✅ | — |
+| Daily task checklist | ✅ | — |
+| View all billing | ✅ | Own billing only |
+| Manage members | ✅ | — |
+| Promote users to admin | ✅ | — |
+| View ranch board | ✅ | ✅ |
+| Edit profile & password | ✅ | ✅ |
+
+---
+
+## Billing Logic
+
+| Service Type | How It's Calculated |
 |---|---|
-| **Ranch Hand** | Direct, classic — the working person behind the horses |
-| **PasturePro** | Professional, modern — emphasizes the service management side |
-| **HoofLog** | Playful, memorable — a daily log for hooved animals |
-| **StableTrack** | Clear and functional — tracks everything at the stable |
-| **CoralBoard** | Warm, southwestern — the "board" where all animals are managed |
+| One-time | Price × number of completions that month |
+| Recurring (daily) | Monthly price × (days completed ÷ days in month) |
+
+A $30/month daily service completed 20 of 30 days → **$20.00** shown for that month.
+
+Billing is a calculation only. The app does not process, hold, or transfer any money.
 
 ---
 
-## 🚀 Setup Instructions
+## Roadmap
 
-### 1. Firebase Project
-
-1. Go to [https://console.firebase.google.com](https://console.firebase.google.com)
-2. Click **Add project** → name it (e.g. `ranchhand-prod`)
-3. Once created, click **Add app** → Web (`</>`) → register the app
-4. Copy the `firebaseConfig` values
-
-### 2. Fill in Firebase Config
-
-Open `src/firebase/config.js` and replace all `YOUR_*` placeholders:
-
-```js
-const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId:             "YOUR_APP_ID",
-};
-```
-
-### 3. Enable Firebase Services
-
-In the Firebase console:
-
-- **Authentication** → Sign-in method → Enable **Email/Password**
-- **Firestore Database** → Create database → Start in **test mode** (for dev), then deploy rules below for production
-- **Storage** → Get started (for horse photo uploads — Phase 2)
-
-### 4. Deploy Firestore Security Rules
-
-```bash
-npm install -g firebase-tools
-firebase login
-firebase init firestore   # select your project
-firebase deploy --only firestore:rules
-```
-
-Or paste the contents of `firestore.rules` directly into the Firebase console under Firestore → Rules.
-
-### 5. Install & Run
-
-```bash
-npm install
-npm start
-```
-
----
-
-## 📁 Project Structure
-
-```
-src/
-├── firebase/
-│   ├── config.js          ← Firebase init + exports (fill in YOUR_ placeholders)
-│   └── firestore.js       ← All Firestore queries + billing calculation logic
-├── context/
-│   └── AuthContext.js     ← Auth state, login, register, profile management
-├── components/
-│   ├── auth/
-│   │   ├── AuthPages.js       ← Login + Register pages
-│   │   ├── OnboardingPage.js  ← Create ranch OR join with 6-digit code
-│   │   └── ProtectedRoute.js  ← Route guards (auth, ranch, admin)
-│   └── layout/
-│       └── AppShell.js        ← Sidebar + mobile header layout
-├── pages/
-│   ├── DashboardPage.js    ← Home for both admin and user
-│   ├── AnimalsPage.js      ← Admin: all animals, custom sort order
-│   ├── ServicesPage.js     ← Admin: create services, assign to animals, approve requests
-│   ├── TodoPage.js         ← Admin: daily checklist, check off services per animal
-│   ├── BillingPage.js      ← Admin: billing summary per owner/animal (tracking only)
-│   ├── MembersPage.js      ← Admin: view members, show ranch code, promote to admin
-│   ├── MyAnimalsPage.js    ← User: their animals + service requests
-│   ├── RanchBoardPage.js   ← User: public directory of all ranch animals
-│   ├── MyBillingPage.js    ← User: their own billing summary (tracking only)
-│   └── SettingsPage.js     ← Both: profile + password update
-└── styles/
-    └── global.css          ← Design tokens, utility classes, base styles
-```
-
----
-
-## 🗂️ Firestore Data Model
-
-```
-ranches/{ranchId}
-  name, code (6-digit), ownerId, createdAt
-
-users/{uid}
-  displayName, email, ranchId, role (admin|user), createdAt
-
-animals/{animalId}
-  ranchId, ownerId, name, breed, age, color, photoURL,
-  feedDetails, vetName/Phone/Email, farrierName/Phone/Email,
-  notes, isPublic, sortOrder, createdAt
-
-services/{serviceId}
-  ranchId, name, description, price,
-  paymentType (one-time|recurring), frequency (daily|weekly|monthly)
-
-animalServices/{id}
-  animalId, serviceId, ranchId, notes, status (active|pending|inactive),
-  requestedBy, assignedAt
-
-serviceCompletions/{id}
-  animalServiceId, animalId, serviceId, ranchId,
-  completedAt, completedBy, month (YYYY-MM)
-```
-
----
-
-## 💰 Billing Logic
-
-Billing is **tracking only** — no money passes through the app.
-
-| Type | Logic |
-|---|---|
-| **One-time** | $X charged each time the task is marked complete |
-| **Recurring (daily)** | $X/month × (days completed ÷ days in month) |
-
-Example: A $30/month daily service completed 20 of 30 days → owner is shown **$20.00** for that month.
-
----
-
-## 🗺️ Development Roadmap
-
-- **Phase 1 (current):** React web app, mobile-first design
-- **Phase 2:** Photo uploads via Firebase Storage, push notifications for service requests
-- **Phase 3:** React Native mobile app (iOS + Android)
-- **Phase 4:** App Store submission + marketing
+- **Phase 1 — Web app** *(current)*: Mobile-first React web app, tested with a real ranch admin
+- **Phase 2 — Polish**: Animal photo uploads, push notifications for service requests and approvals
+- **Phase 3 — Mobile app**: React Native build for iOS and Android
+- **Phase 4 — Launch**: App Store submission and distribution
